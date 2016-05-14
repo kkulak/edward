@@ -7,11 +7,16 @@ import org.jooq.impl.DSL;
 import org.springframework.stereotype.Component;
 import pl.joegreen.edward.core.model.Execution;
 import pl.joegreen.edward.core.model.ExecutionStatus;
+import pl.joegreen.edward.core.model.communication.VolunteerExecutionsCountInfo;
 import pl.joegreen.edward.persistence.generated.Tables;
 import pl.joegreen.edward.persistence.generated.tables.records.ExecutionsRecord;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Collection;
 import java.util.List;
+
+import static org.jooq.impl.DSL.count;
 
 @Component
 public class ExecutionDao extends EdwardDao<Execution, ExecutionsRecord> {
