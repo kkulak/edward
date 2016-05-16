@@ -1,11 +1,10 @@
-var Router = window.ReactRouter
-var Route = Router.Route;
-var Routes = Router.Routes;
+var Router = ReactRouter.Router;
+var Route = ReactRouter.Route;
+var browserHistory = ReactRouter.browserHistory;
+var IndexRoute = ReactRouter.IndexRoute;
 var NotFoundRoute = Router.NotFoundRoute;
-var DefaultRoute = Router.DefaultRoute;
-var Link = Router.Link;
-var ActiveState = Router.ActiveState;
-var Navigation = Router.Navigation;
+var Link = ReactRouter.Link;
+var LineChart = window['react-chartjs'].Line;
 var VOLUNTEER_COUNT_REFRESH_INTERVAL = 5000;
 
 var PAGES = {
@@ -22,8 +21,8 @@ function createCodeMirror(parentNode, selector, options) {
     return lastEditor;
 }
 
-var refreshNumberOfConnectedVolunteers = function(){
-    getNumberOfConnectedVolunteers().done(function(data){
+var refreshNumberOfConnectedVolunteers = function () {
+    getNumberOfConnectedVolunteers().done(function (data) {
         $("#connectedVolunteers").text(data);
     })
 }
@@ -31,8 +30,8 @@ var refreshNumberOfConnectedVolunteers = function(){
 
 window.setInterval(refreshNumberOfConnectedVolunteers, VOLUNTEER_COUNT_REFRESH_INTERVAL);
 refreshNumberOfConnectedVolunteers();
-getVersion().done(function(data){
-   $("#version").text(data);
+getVersion().done(function (data) {
+    $("#version").text(data);
 });
 
 
@@ -40,7 +39,7 @@ var Waiting = React.createClass({
     render: function () {
         return (
             <div>
-            Waiting for data... </div>
+                Waiting for data... </div>
 
         )
     }
@@ -52,26 +51,30 @@ var BreadCrumb = React.createClass({
         var urlProperties = this.props.urlProperties;
         var getBreadcrumbPart = function (link) {
             return (
-                <li>
+                <li key={link}>
                     <a href="#">
-                    {link}
+                        {link}
                     </a>
                 </li>
             )
-        }
+        };
+
         markup.push(getBreadcrumbPart(<Link to="/"> projects </Link>));
         if (urlProperties.projectId) {
-            markup.push(getBreadcrumbPart(<Link to="project" params={urlProperties}> project: {urlProperties.projectId}</Link>))
+            markup.push(getBreadcrumbPart(<Link to={"/project" + urlProperties.projectId}>
+                project: {urlProperties.projectId}</Link>))
             if (urlProperties.jobId) {
-                markup.push(getBreadcrumbPart(<Link to="job" params={urlProperties}> job: {urlProperties.jobId}</Link>))
+                markup.push(getBreadcrumbPart(<Link to={"/job" + urlProperties.jobId}>
+                    job: {urlProperties.jobId}</Link>))
                 if (urlProperties.taskId) {
-                    markup.push(getBreadcrumbPart(<Link to="task" params={urlProperties}> task: {urlProperties.taskId}</Link>))
+                    markup.push(getBreadcrumbPart(<Link to={"/task" + urlProperties.taskId}>
+                        task: {urlProperties.taskId}</Link>))
                 }
             }
         }
         return (
             <ol className="breadcrumb">
-		  {markup}
+                {markup}
             </ol>
         );
     }
@@ -87,13 +90,16 @@ var GenericList = React.createClass({
             return <Waiting/>
         } else {
             var that = this;
-            var markup = this.state.items.map(function (item) {
-                return that.props.itemToMarkupFunction(item, that.props)
+            var markup = this.state.items.map(function (item, idx) {
+                var itemMarkup = that.props.itemToMarkupFunction(item, that.props);
+                itemMarkup.key = idx;
+                return itemMarkup;
             })
             if (this.state.items.length > 0) {
                 return (
                     <table className="table">
-                        {markup}
+                        <thead></thead>
+                        <tbody>{markup}</tbody>
                     </table>);
             } else {
                 return (
@@ -120,7 +126,7 @@ var CellWithItemId = React.createClass({
 var projectListRenderItem = function (item) {
     return (<tr>
         <td>
-            <Link to="project" params={{projectId: item.id}}>{item.name}  </Link>
+            <Link to={"project/" + item.id} >{item.name}</Link>
         </td>
         <CellWithItemId itemId={item.id}/>
     </tr>
@@ -128,7 +134,7 @@ var projectListRenderItem = function (item) {
 };
 var jobsListGetItems = function (props) {
     return $.ajax({
-        type: "GET", url: BASE_API_URL + "project/" + props.params.projectId + "/jobs", dataType: 'json', headers: {
+        type: "GET", url: BASE_API_URL + "/project/" + props.params.projectId + "/jobs", dataType: 'json', headers: {
             "Authorization": "Basic " + btoa("admin" + ":" + "admin")
         }
     })
@@ -137,7 +143,7 @@ var jobsListGetItems = function (props) {
 var jobsListRenderItem = function (item) {
     return (<tr>
         <td>
-            <Link to="job" params={{projectId: item.projectId, jobId: item.id}}>{item.name}</Link>
+            <Link to={"/project/" + item.projectId + "/job/" + item.id}>{item.name}</Link>
         </td>
         <CellWithItemId itemId={item.id}/>
     </tr>
@@ -146,7 +152,7 @@ var jobsListRenderItem = function (item) {
 
 var tasksListGetItems = function (props) {
     return $.ajax({
-        type: "GET", url: BASE_API_URL + "job/" + props.params.jobId + "/tasks", dataType: 'json', headers: {
+        type: "GET", url: BASE_API_URL + "/job/" + props.params.jobId + "/tasks", dataType: 'json', headers: {
             "Authorization": "Basic " + btoa("admin" + ":" + "admin")
         }
     })
@@ -155,16 +161,14 @@ var tasksListGetItems = function (props) {
 var tasksListRenderItem = function (item, props) {
     return (<tr>
         <td>
-            <Link to="task" params={{
-                projectId: props.params.projectId, jobId: item.jobId, taskId: item.id
-            }}>&#35;{item.id}</Link>
+            <Link to={"/project/" + item.projectId + "/job/" + item.jobId + "/task/" + item.id}>&#35;{item.id}</Link>
         </td>
     </tr>);
 }
 
 var executionsListGetItems = function (props) {
     return $.ajax({
-        type: "GET", url: BASE_API_URL + "task/" + props.params.taskId + "/executions", dataType: 'json', headers: {
+        type: "GET", url: BASE_API_URL + "/task/" + props.params.taskId + "/executions", dataType: 'json', headers: {
             "Authorization": "Basic " + btoa("admin" + ":" + "admin")
         }
     })
@@ -174,16 +178,14 @@ var executionsListRenderItem = function (item, props) {
     var date = new Date(0);
     date.setUTCMilliseconds(item.creationTime);
     if (item.status === "FINISHED") {
-        var linkPart = (<Link to="execution" params={{
-            projectId: props.params.projectId, jobId: props.params.jobId, taskId: item.taskId, executionId: item.id
-        }}> {item.status} </Link> )
+        var linkPart = (<Link to={"/project/" + props.projectId + "/job/" + props.jobId + "/task/" + item.taskId + "/execution/" + item.id} > {item.status} </Link> )
     } else {
         var linkPart = item.status;
     }
     return (<tr>
         <CellWithItemId itemId={item.id}/>
         <td>
-        {linkPart}
+            {linkPart}
         </td>
         <td> {item.error} </td>
         <td> {date.toLocaleDateString()} {date.toLocaleTimeString()}</td>
@@ -193,27 +195,33 @@ var executionsListRenderItem = function (item, props) {
 
 
 var ProjectBox = React.createClass({
-    mixins: [Navigation], componentDidMount: function () {
+    contextTypes: {
+        router: React.PropTypes.object.isRequired
+    }, componentDidMount: function () {
         var that = this;
         getProject(this.props.params.projectId).then(function (project) {
             that.setState(project);
         })
     }, onJobAdd: function () {
-        this.transitionTo("addJob", this.props.params)
+        this.context.router.push("/project/" + this.props.params.projectId + "/job", this.props.params)
     }, render: function () {
         var disabled = !this.props.isEditable;
         return (
             this.state ? (<div>
                 <h1> Project: {this.state.name} </h1>
+
                 <div className="form-group">
                     <label htmlFor="id">Id: </label>
-                    <input disabled={disabled} type="text" id="id" name="id" value= {this.state.id} className="form-control"/>
-                    <label  htmlFor="name">Name: </label>
-                    <input disabled={disabled}  type="text" id="name" name="name" value={this.state.name} className="form-control"/>
+                    <input disabled={disabled} type="text" id="id" name="id" value={this.state.id}
+                           className="form-control"/>
+                    <label htmlFor="name">Name: </label>
+                    <input disabled={disabled} type="text" id="name" name="name" value={this.state.name}
+                           className="form-control"/>
                 </div>
                 <h2> Jobs </h2>
-                <GenericList getItemsFunction={jobsListGetItems} itemToMarkupFunction= {jobsListRenderItem} params={this.props.params}/>
-                <button className="btn" onClick={this.onJobAdd}> Add job </button>
+                <GenericList getItemsFunction={jobsListGetItems} itemToMarkupFunction={jobsListRenderItem}
+                             params={this.props.params}/>
+                <button className="btn" onClick={this.onJobAdd}> Add job</button>
             </div>
             ) : (
                 <Waiting/>
@@ -223,7 +231,9 @@ var ProjectBox = React.createClass({
 });
 
 var AddProjectBox = React.createClass({
-    mixins: [Navigation], getInitialState: function () {
+    contextTypes: {
+        router: React.PropTypes.object.isRequired
+    }, getInitialState: function () {
         return {
             ownerId: 1, id: null, name: ""
         }
@@ -234,16 +244,18 @@ var AddProjectBox = React.createClass({
     }, addClick: function () {
         var that = this;
         putProject(this.state).then(function (idContainer) {
-            that.replaceWith("app");
+            that.context.router.replace("/");
         });
     }, render: function () {
         return (
             <div>
                 <h1> Project: {this.state.name} </h1>
+
                 <div className="form-group">
-                    <label  htmlFor="name">Name: </label>
-                    <input  type="text" id="name" name="name" value={this.state.name} onChange={this.nameChange} className="form-control"/>
-                    <button className="btn" onClick={this.addClick}> Add </button>
+                    <label htmlFor="name">Name: </label>
+                    <input type="text" id="name" name="name" value={this.state.name} onChange={this.nameChange}
+                           className="form-control"/>
+                    <button className="btn" onClick={this.addClick}> Add</button>
                 </div>
             </div>
 
@@ -253,29 +265,36 @@ var AddProjectBox = React.createClass({
 
 
 var JobBox = React.createClass({
-    mixins: [Navigation], componentDidMount: function () {
+    contextTypes: {
+        router: React.PropTypes.object.isRequired
+    }, componentDidMount: function () {
         var that = this;
         getJob(this.props.params.jobId).then(function (job) {
             that.setState(job);
         })
     }, onTasksAdd: function () {
-        this.transitionTo("addTasks", this.props.params)
+        this.context.router.push(this.props.location.pathname + "/tasks", this.props.params);
     }, render: function () {
         return (
             this.state ? (<div>
                 <h1>
-                Job: {this.state.name}</h1>
+                    Job: {this.state.name}</h1>
+
                 <div className="form-group">
                     <label htmlFor="id">Id: </label>
-                    <input disabled="true" type="text" id="id" name="id" value= {this.state.id} className="form-control"/>
+                    <input disabled="true" type="text" id="id" name="id" value={this.state.id}
+                           className="form-control"/>
                     <label htmlFor="projectId">Project id: </label>
-                    <input disabled="true" type="text" id="projectId" name="projectId" value= {this.state.projectId} className="form-control"/>
+                    <input disabled="true" type="text" id="projectId" name="projectId" value={this.state.projectId}
+                           className="form-control"/>
                     <label htmlFor="name">Name: </label>
-                    <input disabled="true"  type="text" id="name" name="name" value={this.state.name} className="form-control"/>
+                    <input disabled="true" type="text" id="name" name="name" value={this.state.name}
+                           className="form-control"/>
                 </div>
                 <h2> Tasks </h2>
-                <GenericList getItemsFunction={tasksListGetItems} itemToMarkupFunction={tasksListRenderItem} params={this.props.params}/>
-                <button className="btn" onClick = {this.onTasksAdd}> Add tasks </button>
+                <GenericList getItemsFunction={tasksListGetItems} itemToMarkupFunction={tasksListRenderItem}
+                             params={this.props.params}/>
+                <button className="btn" onClick={this.onTasksAdd}> Add tasks</button>
                 <h2> Code </h2>
                 <pre>Please define function compute(input) </pre>
                 <textarea id="codeArea">
@@ -287,13 +306,15 @@ var JobBox = React.createClass({
             ) : (<Waiting/>)
         );
     }, componentDidUpdate: function () {
-        createCodeMirror(this.getDOMNode(), "#codeArea", {isJson: false, isEditable: false});
+        createCodeMirror(ReactDOM.findDOMNode(this), "#codeArea", {isJson: false, isEditable: false});
     }
 });
 
 
 var AddJobBox = React.createClass({
-    mixins: [Navigation], getInitialState: function () {
+    contextTypes: {
+        router: React.PropTypes.object.isRequired
+    }, getInitialState: function () {
         return {
             projectId: this.props.params.projectId, id: null, name: "", code: ""
         }
@@ -309,28 +330,30 @@ var AddJobBox = React.createClass({
     }, addClick: function (event) {
         var that = this;
         putJob(this.state).then(function () {
-            that.transitionTo("project", that.props.params);
+            that.context.router.push("project/" + that.props.params.projectId);
         })
     }, render: function () {
         return (
             this.state ? (<div>
                 <h1>
-                Job: {this.state.name}</h1>
+                    Job: {this.state.name}</h1>
+
                 <div className="form-group">
                     <label htmlFor="name">Name: </label>
-                    <input onChange={this.nameChange} type="text" id="name" name="name" value={this.state.name} className="form-control"/>
+                    <input onChange={this.nameChange} type="text" id="name" name="name" value={this.state.name}
+                           className="form-control"/>
                 </div>
                 <h2> Code </h2>
                 <pre>Please define function compute(input) </pre>
                 <textarea id="codeArea"/>
-                <button className="btn" onClick={this.addClick}> Add </button>
+                <button className="btn" onClick={this.addClick}> Add</button>
 
             </div>
 
             ) : (<Waiting/>)
         );
     }, componentDidMount: function () {
-        var editor = createCodeMirror(this.getDOMNode(), "#codeArea", {isJson: false, isEditable: true});
+        var editor = createCodeMirror(ReactDOM.findDOMNode(this), "#codeArea", {isJson: false, isEditable: true});
         editor.on("change", this.codeChange)
     }
 });
@@ -354,23 +377,32 @@ var TaskBox = React.createClass({
         return (
             this.state ? (<div>
                 <h1>
-                Task: {this.state.id}</h1>
+                    Task: {this.state.id}</h1>
+
                 <div className="form-group">
                     <label htmlFor="id">Id: </label>
-                    <input disabled="true" type="text" id="id" name="id" value= {this.state.id} className="form-control"/>
+                    <input disabled="true" type="text" id="id" name="id" value={this.state.id}
+                           className="form-control"/>
                     <label htmlFor="projectId">Project id: </label>
-                    <input disabled="true" type="text" id="projectId" name="projectId" value= {this.state.jobId} className="form-control"/>
+                    <input disabled="true" type="text" id="projectId" name="projectId" value={this.state.jobId}
+                           className="form-control"/>
                     <label htmlFor="priority">Priority:</label>
-                    <input disabled="true" type="text" id="priority" name="priority" value= {this.state.priority} className="form-control"/>
+                    <input disabled="true" type="text" id="priority" name="priority" value={this.state.priority}
+                           className="form-control"/>
                     <label htmlFor="concurrentExecutions">Concurrent executions:</label>
-                    <input disabled="true" type="text" id="concurrentExecutions" name="concurrentExecutions" value= {this.state.concurrentExecutionsCount} className="form-control"/>
+                    <input disabled="true" type="text" id="concurrentExecutions" name="concurrentExecutions"
+                           value={this.state.concurrentExecutionsCount} className="form-control"/>
                     <label htmlFor="timeout">Timeout:</label>
-                    <input disabled="true" type="text" id="timeout" name="timeout" value= {this.state.timeout} className="form-control"/>
+                    <input disabled="true" type="text" id="timeout" name="timeout" value={this.state.timeout}
+                           className="form-control"/>
                     <label htmlFor="status">Status: </label>
-                    <input disabled="true" type="text" id="status" name="status" value= {this.state.status} className="form-control"/>
+                    <input disabled="true" type="text" id="status" name="status" value={this.state.status}
+                           className="form-control"/>
                 </div>
                 <h2> Executions </h2>
-                <GenericList getItemsFunction={executionsListGetItems} itemToMarkupFunction={executionsListRenderItem} params={this.props.params}/>
+                <GenericList getItemsFunction={executionsListGetItems} itemToMarkupFunction={executionsListRenderItem}
+                             params={this.props.params}/>
+
                 <h2> Input data </h2>
                 <textarea id="dataArea">
                 {JSON.stringify(JSON.parse(this.state.inputData), null, 2)}
@@ -379,14 +411,16 @@ var TaskBox = React.createClass({
             ) : (<Waiting/>)
         );
     }, componentDidUpdate: function () {
-        createCodeMirror(this.getDOMNode(), "#dataArea", {isJson: true, isEditable: false});
+        createCodeMirror(ReactDOM.findDOMNode(this), "#dataArea", {isJson: true, isEditable: false});
     }
 });
 
 
 var AddTasksBox = React.createClass({
-    mixins: [Navigation], getInitialState: function () {
-        return {priority: 0, concurrentExecutionsCount: 1, timeout:5000, inputs: ""};
+    contextTypes: {
+        router: React.PropTypes.object.isRequired
+    }, getInitialState: function () {
+        return {priority: 0, concurrentExecutionsCount: 1, timeout: 5000, inputs: ""};
     }, dataChange: function (codeMirror) {
         console.log("setting state", codeMirror.getValue())
         this.setState({
@@ -402,31 +436,37 @@ var AddTasksBox = React.createClass({
         var that = this;
         putTasks(this.props.params.jobId, this.state.inputs, this.state.priority,
             this.state.concurrentExecutionsCount, this.state.timeout).then(function () {
-                that.transitionTo("job", that.props.params);
+                that.context.router.push("/project/" +that.props.params.projectId + "/job/" + that.props.params.jobId, that.props.params);
             })
     }, render: function () {
         return (
             <div>
                 <h1>
-                Add new tasks</h1>
+                    Add new tasks</h1>
+
                 <h2> Options </h2>
+
                 <div className="form-group">
                     <label htmlFor="name">Priority</label>
-                    <input onChange={this.priorityChange} type="number" id="priority" min="0" name="priority" value={this.state.priority} className="form-control"/>
+                    <input onChange={this.priorityChange} type="number" id="priority" min="0" name="priority"
+                           value={this.state.priority} className="form-control"/>
                     <label htmlFor="name">Number of concurrent executions</label>
-                    <input onChange={this.concurrentExecutionsChange} type="number" id="priority" min="0" name="priority" value={this.state.concurrentExecutionsCount} className="form-control"/>
+                    <input onChange={this.concurrentExecutionsChange} type="number" id="priority" min="0"
+                           name="priority" value={this.state.concurrentExecutionsCount} className="form-control"/>
                     <label htmlFor="name">Timeout [ms]</label>
-                    <input onChange={this.timeoutChange} type="number" id="timeout" min="100" name="priority" value={this.state.timeout} className="form-control"/>
+                    <input onChange={this.timeoutChange} type="number" id="timeout" min="100" name="priority"
+                           value={this.state.timeout} className="form-control"/>
                 </div>
                 <h2> Input data </h2>
+
                 <div>Array of inputs, ex. [1,2,3]:</div>
                 <textarea id="dataArea"/>
-                <button className="btn" onClick={this.addClick}> Add Tasks </button>
+                <button className="btn" onClick={this.addClick}> Add Tasks</button>
             </div>
 
         );
     }, componentDidMount: function () {
-        var editor = createCodeMirror(this.getDOMNode(), "#dataArea", {isJson: true, isEditable: true});
+        var editor = createCodeMirror(ReactDOM.findDOMNode(this), "#dataArea", {isJson: true, isEditable: true});
         editor.on("change", this.dataChange)
     }
 
@@ -452,12 +492,15 @@ var ExecutionBox = React.createClass({
         return (
             this.state ? (<div>
                 <h1>
-                Execution: {this.state.id}</h1>
+                    Execution: {this.state.id}</h1>
+
                 <div className="form-group">
                     <label htmlFor="id">Id: </label>
-                    <input disabled="true" type="text" id="id" name="id" value= {this.state.id} className="form-control"/>
+                    <input disabled="true" type="text" id="id" name="id" value={this.state.id}
+                           className="form-control"/>
                     <label htmlFor="taskId">Task id: </label>
-                    <input disabled="true" type="text" id="taskId" name="taskId" value= {this.state.taskId} className="form-control"/>
+                    <input disabled="true" type="text" id="taskId" name="taskId" value={this.state.taskId}
+                           className="form-control"/>
                 </div>
                 <h2> Result </h2>
                 <textarea id="dataArea">
@@ -467,33 +510,110 @@ var ExecutionBox = React.createClass({
             ) : (<Waiting/>)
         );
     }, componentDidUpdate: function () {
-        createCodeMirror(this.getDOMNode(), "#dataArea", {isJson: true, isEditable: false});
+        createCodeMirror(ReactDOM.findDOMNode(this), "#dataArea", {isJson: true, isEditable: false});
     }
 });
 
 
 var AllProjectsBox = React.createClass({
-    mixins: [Navigation], onAdd: function () {
-        this.transitionTo("addProject");
+    contextTypes: {
+        router: React.PropTypes.object.isRequired
+    }, onAdd: function () {
+        this.context.router.push("add/project");
     }, render: function () {
         return (
             <div>
-                <GenericList  getItemsFunction={projectListGetItems} itemToMarkupFunction={projectListRenderItem}/>
-                <button className="btn" onClick={this.onAdd}> Add project </button>
+                <GenericList getItemsFunction={projectListGetItems} itemToMarkupFunction={projectListRenderItem}/>
+                <button className="btn" onClick={this.onAdd}> Add project</button>
             </div>
         )
     }
 
-})
+});
+
+var ChartSnapshotButton = React.createClass({
+    render: function () {
+        return <a>take snapshot</a>;
+    }
+});
+
+var VolunteerChart = React.createClass({
+    chartDataWith: function (data) {
+        return {
+            labels: data.map(entry => entry.date.format('DD-MM-YYYY h:mm:ss')),
+            datasets: [{
+                fillColor: "rgba(151,187,205,0.2)",
+                strokeColor: "rgba(151,187,205,1)",
+                pointColor: "rgba(151,187,205,1)",
+                pointStrokeColor: "#fff",
+                pointHighlightFill: "#fff",
+                pointHighlightStroke: "rgba(151,187,205,1)",
+                data: data.map(entry => entry.volunteers)
+            }]
+        }
+    },
+    render() {
+        return (
+            <LineChart className="volunteer-chart" data={this.chartDataWith(this.props.data)} id={this.props.id}
+                       width="800" height="450"/>
+        );
+    }
+});
+
+var VolunteerChartContainer = React.createClass({
+    getInitialState: function () {
+        return {data: []};
+    },
+    updateState: function (volunteers) {
+        var entry = {
+            volunteers: volunteers,
+            date: moment()
+        };
+
+        this.setState({data: this.state.data.concat([entry])});
+    },
+    fetchVolunteersAndUpdateState: function () {
+        fetch('http://localhost:8080/api/internal/volunteerCount/', {
+            headers: {
+                "Authorization": "Basic " + btoa("admin:admin")
+            }
+        }).then(r => r.json())
+            .then(this.updateState);
+    },
+    componentDidMount: function () {
+        this.fetchVolunteersAndUpdateState();
+        setInterval(this.fetchVolunteersAndUpdateState, this.props.fetchInterval);
+    },
+    render: function () {
+        var chartId = 'volunteerChart';
+
+        return (
+            <div className="volunteerChart-container chart-container">
+                <h2 className="chart-title">active volunteers</h2>
+                <VolunteerChart data={this.state.data} id={chartId}/>
+            </div>
+        );
+    }
+});
+
+var Statistics = React.createClass({
+    render: function () {
+        return (
+            <div className="statistics">
+                <h1 className="statistics-title">statistics</h1>
+                <VolunteerChartContainer fetchInterval={2000}/>
+            </div>
+        );
+    }
+});
 
 var Container = React.createClass({
-    mixins: [ActiveState],
-
     render: function () {
         return (
             <div>
-                <BreadCrumb urlProperties={this.getActiveParams()}/>
-                <this.props.activeRouteHandler/>
+                <Statistics />
+                <BreadCrumb urlProperties={this.props.params}/>
+                {this.props.children}
             </div>
         )
     }
@@ -501,20 +621,20 @@ var Container = React.createClass({
 });
 
 
-var routes = (
-    <Routes >
-        <Route name="app" path="/" handler={Container}>
-            <Route name="project" path="/project/:projectId" handler={ProjectBox}/>
-            <Route name="addProject" path="add/project" handler={AddProjectBox}/>
-            <Route name="addJob" path="add/project/:projectId/job" handler={AddJobBox}/>
-            <Route name="addTasks" path="add/project/:projectId/job/:jobId/tasks" handler={AddTasksBox}/>
-            <Route name="job" path="/project/:projectId/job/:jobId" handler={JobBox}/>
-            <Route name="task" path="/project/:projectId/job/:jobId/task/:taskId" handler={TaskBox}/>
-            <Route name="execution" path="/project/:projectId/job/:jobId/task/:taskId/execution/:executionId" handler={ExecutionBox}/>
-            <DefaultRoute handler={AllProjectsBox} />
+var router = (
+    <Router history={browserHistory}>
+        <Route name="app" path="/" component={Container}>
+            <Route path="project/:projectId" component={ProjectBox}/>
+            <Route path="add/project" component={AddProjectBox}/>
+            <Route path="project/:projectId/job" component={AddJobBox}/>
+            <Route path="project/:projectId/job/:jobId/tasks" component={AddTasksBox}/>
+            <Route path="project/:projectId/job/:jobId" component={JobBox}/>
+            <Route path="project/:projectId/job/:jobId/task/:taskId" component={TaskBox}/>
+            <Route path="project/:projectId/job/:jobId/task/:taskId/execution/:executionId" component={ExecutionBox}/>
+            <IndexRoute component={AllProjectsBox}/>
         </Route>
-    </Routes>
+    </Router>
 );
 
 
-var containerComponent = React.render(routes, document.getElementById('currentContent'));
+ReactDOM.render(router, document.getElementById('currentContent'));
