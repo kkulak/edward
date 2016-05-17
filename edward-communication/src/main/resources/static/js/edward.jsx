@@ -5,6 +5,7 @@ var IndexRoute = ReactRouter.IndexRoute;
 var NotFoundRoute = Router.NotFoundRoute;
 var Link = ReactRouter.Link;
 var LineChart = window['react-chartjs'].Line;
+var BarChart = window['react-chartjs'].Bar;
 var VOLUNTEER_COUNT_REFRESH_INTERVAL = 5000;
 
 var PAGES = {
@@ -126,7 +127,7 @@ var CellWithItemId = React.createClass({
 var projectListRenderItem = function (item) {
     return (<tr>
         <td>
-            <Link to={"project/" + item.id} >{item.name}</Link>
+            <Link to={"project/" + item.id}>{item.name}</Link>
         </td>
         <CellWithItemId itemId={item.id}/>
     </tr>
@@ -178,7 +179,8 @@ var executionsListRenderItem = function (item, props) {
     var date = new Date(0);
     date.setUTCMilliseconds(item.creationTime);
     if (item.status === "FINISHED") {
-        var linkPart = (<Link to={"/project/" + props.projectId + "/job/" + props.jobId + "/task/" + item.taskId + "/execution/" + item.id} > {item.status} </Link> )
+        var linkPart = (<Link
+            to={"/project/" + props.projectId + "/job/" + props.jobId + "/task/" + item.taskId + "/execution/" + item.id}> {item.status} </Link> )
     } else {
         var linkPart = item.status;
     }
@@ -436,7 +438,7 @@ var AddTasksBox = React.createClass({
         var that = this;
         putTasks(this.props.params.jobId, this.state.inputs, this.state.priority,
             this.state.concurrentExecutionsCount, this.state.timeout).then(function () {
-                that.context.router.push("/project/" +that.props.params.projectId + "/job/" + that.props.params.jobId, that.props.params);
+                that.context.router.push("/project/" + that.props.params.projectId + "/job/" + that.props.params.jobId, that.props.params);
             })
     }, render: function () {
         return (
@@ -531,12 +533,6 @@ var AllProjectsBox = React.createClass({
 
 });
 
-var ChartSnapshotButton = React.createClass({
-    render: function () {
-        return <a>take snapshot</a>;
-    }
-});
-
 var VolunteerChart = React.createClass({
     chartDataWith: function (data) {
         return {
@@ -552,15 +548,36 @@ var VolunteerChart = React.createClass({
             }]
         }
     },
-    render() {
+    render: function () {
         return (
-            <LineChart className="volunteer-chart" data={this.chartDataWith(this.props.data)} id={this.props.id}
+            <LineChart className="chart" data={this.chartDataWith(this.props.data)} id={this.props.id}
                        width="800" height="450"/>
         );
     }
 });
 
-var VolunteerChartContainer = React.createClass({
+
+var SnapshotButton = React.createClass({
+    getInitialState: function () {
+        return {imageUrl: ''};
+    },
+    makeSnapshot: function () {
+        var canvasId = this.props.canvasId;
+        var canvasEl = document.getElementById(canvasId);
+        this.setState({imageUrl: canvasEl.toDataURL('image/png')});
+    },
+    render: function () {
+        return <a
+            className="snapshot-button"
+            href={this.state.imageUrl}
+            target="_blank"
+            onClick={this.makeSnapshot}
+            >take snapshot</a>;
+    }
+});
+
+
+var ActiveVolunteersChartContainer = React.createClass({
     getInitialState: function () {
         return {data: []};
     },
@@ -590,18 +607,78 @@ var VolunteerChartContainer = React.createClass({
         return (
             <div className="volunteerChart-container chart-container">
                 <h2 className="chart-title">active volunteers</h2>
+                <SnapshotButton canvasId={chartId}/>
                 <VolunteerChart data={this.state.data} id={chartId}/>
             </div>
         );
     }
 });
 
-var Statistics = React.createClass({
+var VolunteerExecutionsChartContainer = React.createClass({
+    getInitialState: function () {
+        return {
+            data: {
+                labels: [],
+                datasets: [{
+                    fillColor: "rgba(151,187,205,0.2)",
+                    strokeColor: "rgba(151,187,205,1)",
+                    pointColor: "rgba(151,187,205,1)",
+                    pointStrokeColor: "#fff",
+                    pointHighlightFill: "#fff",
+                    pointHighlightStroke: "rgba(151,187,205,1)",
+                    data: []
+                }]
+            }
+        };
+    },
+    updateState: function (data) {
+        this.setState({
+            data: {
+                labels: data.map(entry => entry.volunteerId),
+                datasets: [{
+                    fillColor: "rgba(151,187,205,0.2)",
+                    strokeColor: "rgba(151,187,205,1)",
+                    pointColor: "rgba(151,187,205,1)",
+                    pointStrokeColor: "#fff",
+                    pointHighlightFill: "#fff",
+                    pointHighlightStroke: "rgba(151,187,205,1)",
+                    data: data.map(entry => entry.executionsCount)
+                }]
+            }
+        });
+    },
+    fetchData: function (startDate, endDate) {
+        var endpoint = 'http://localhost:8080/api/internal/metrics/volunteer-executions/';
+        var params = 'type=' + this.props.type + '&from=' + startDate + '&to=' + endDate;
+        return fetch(endpoint + '?' + params, {
+            headers: {
+                "Authorization": "Basic " + btoa("admin:admin")
+            }
+        }).then(r => r.json());
+    },
+    componentDidMount: function () {
+        var startDate = moment().subtract(7, 'days').format('YYYY-MM-DD');
+        var endDate = moment().format('YYYY-MM-DD');
+
+        this.fetchData(startDate, endDate).then(this.updateState);
+    },
     render: function () {
+        var chartId = this.props.type + '-' + Date.now();
+        var options = {
+            xAxisID: 'volunteer',
+            yAxisID: 'executions'
+        };
+
         return (
-            <div className="statistics">
-                <h1 className="statistics-title">statistics</h1>
-                <VolunteerChartContainer fetchInterval={2000}/>
+            <div className="volunteerChart-container chart-container">
+                <h2 className="chart-title">{this.props.type} executions per volunteer (last 7 days)</h2>
+                <SnapshotButton canvasId={chartId}/>
+                <BarChart className="chart"
+                          data={this.state.data}
+                          options={options}
+                          id={chartId}
+                          width="800" height="450"/>
+
             </div>
         );
     }
@@ -611,9 +688,17 @@ var Container = React.createClass({
     render: function () {
         return (
             <div>
-                <Statistics />
-                <BreadCrumb urlProperties={this.props.params}/>
-                {this.props.children}
+                <div className="block">
+                    <h1 className="block-title">statistics</h1>
+                    <ActiveVolunteersChartContainer fetchInterval={2000}/>
+                    <VolunteerExecutionsChartContainer type="successful"/>
+                    <VolunteerExecutionsChartContainer type="failing"/>
+                </div>
+                <div className="block">
+                    <h1 className="block-title">projects</h1>
+                    <BreadCrumb urlProperties={this.props.params}/>
+                    {this.props.children}
+                </div>
             </div>
         )
     }
