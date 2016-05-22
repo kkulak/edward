@@ -6,7 +6,8 @@ var NotFoundRoute = Router.NotFoundRoute;
 var Link = ReactRouter.Link;
 var LineChart = window['react-chartjs'].Line;
 var BarChart = window['react-chartjs'].Bar;
-var VOLUNTEER_COUNT_REFRESH_INTERVAL = 5000;
+var DateTimeField = window['ReactBootstrapDatetimepicker'];
+var VOLUNTEER_COUNT_REFRESH_INTERVAL = 6000;
 
 var PAGES = {
     ALL: 0, PROJECT: 1, JOB: 2, TASK: 3, EXECUTION: 4
@@ -568,7 +569,7 @@ var SnapshotButton = React.createClass({
     },
     render: function () {
         return <a
-            className="snapshot-button"
+            className="button float-right"
             href={this.state.imageUrl}
             target="_blank"
             onClick={this.makeSnapshot}
@@ -576,6 +577,55 @@ var SnapshotButton = React.createClass({
     }
 });
 
+// Really poor quality component
+var DATE_FORMAT = 'DD-MM-YYYY HH:MM';
+var DateTimeRangePicker = React.createClass({
+    getInitialState: function() {
+        return {
+            startDate: moment().tz('Europe/Warsaw').subtract(7, 'days').format(DATE_FORMAT),
+            endDate  : moment().tz('Europe/Warsaw').format(DATE_FORMAT)
+        };
+    },
+    onStartDateChanged: function(date) {
+        this.setState({ startDate: date });
+    },
+    onEndDateChanged: function(date) {
+        this.setState({ endDate: date });
+    },
+    asDateObject: function(dateString) {
+        return moment(dateString, DATE_FORMAT);
+    },
+    onRefreshClick: function() {
+        this.props.onRefreshClick(
+            this.asDateObject(this.state.startDate),
+            this.asDateObject(this.state.endDate)
+        );
+    },
+    render: function() {
+        return (
+            <div className="date-range-picker-container">
+                <div className="date-picker-container">
+                    <DateTimeField
+                        dateTime={this.state.startDate}
+                        maxDate={this.asDateObject(this.state.endDate)}
+                        format={DATE_FORMAT}
+                        inputFormat={DATE_FORMAT}
+                        onChange={this.onStartDateChanged} />
+                </div>
+                <div className="date-picker-container">
+                    <DateTimeField
+                        dateTime={this.state.endDate}
+                        minDate={this.asDateObject(this.state.startDate)}
+                        format={DATE_FORMAT}
+                        inputFormat={DATE_FORMAT}
+                        onChange={this.onEndDateChanged}/>
+                </div>
+                <a  className="button"
+                    onClick={this.onRefreshClick}>Refresh</a>
+            </div>
+        );
+    }
+});
 
 var ActiveVolunteersChartContainer = React.createClass({
     getInitialState: function () {
@@ -657,10 +707,16 @@ var VolunteerExecutionsChartContainer = React.createClass({
         }).then(r => r.json());
     },
     componentDidMount: function () {
-        var startDate = moment().subtract(7, 'days').format('YYYY-MM-DD');
-        var endDate = moment().format('YYYY-MM-DD');
+        var startDate = moment().subtract(7, 'days');
+        var endDate = moment();
 
-        this.fetchData(startDate, endDate).then(this.updateState);
+        this.fetchAndUpdateState(startDate, endDate);
+    },
+    fetchAndUpdateState: function(startDate, endDate) {
+        var formattedStartDate = startDate.toISOString();
+        var formattedEndDate = endDate.toISOString();
+        this.fetchData(formattedStartDate, formattedEndDate)
+            .then(this.updateState);
     },
     render: function () {
         var chartId = this.props.type + '-' + Date.now();
@@ -671,8 +727,9 @@ var VolunteerExecutionsChartContainer = React.createClass({
 
         return (
             <div className="volunteerChart-container chart-container">
-                <h2 className="chart-title">{this.props.type} executions per volunteer (last 7 days)</h2>
+                <h2 className="chart-title">{this.props.type} executions per volunteer</h2>
                 <SnapshotButton canvasId={chartId}/>
+                <DateTimeRangePicker onRefreshClick={this.fetchAndUpdateState} />
                 <BarChart className="chart"
                           data={this.state.data}
                           options={options}
@@ -690,7 +747,7 @@ var Container = React.createClass({
             <div>
                 <div className="block">
                     <h1 className="block-title">statistics</h1>
-                    <ActiveVolunteersChartContainer fetchInterval={2000}/>
+                    <ActiveVolunteersChartContainer fetchInterval={VOLUNTEER_COUNT_REFRESH_INTERVAL}/>
                     <VolunteerExecutionsChartContainer type="successful"/>
                     <VolunteerExecutionsChartContainer type="failing"/>
                 </div>

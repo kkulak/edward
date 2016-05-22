@@ -8,13 +8,13 @@ import pl.joegreen.edward.core.model.communication.VolunteerExecutionsCountInfo;
 import pl.joegreen.edward.persistence.generated.Tables;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 
 import static org.jooq.impl.DSL.count;
 import static pl.joegreen.edward.core.model.ExecutionStatus.*;
-import static pl.joegreen.edward.core.utils.DateTimeUtils.endOfDayInMilliseconds;
-import static pl.joegreen.edward.core.utils.DateTimeUtils.startOfDayInMilliseconds;
+import static pl.joegreen.edward.core.utils.DateTimeUtils.localDateTimeInMilliseconds;
 
 @Component
 public class MetricsDao {
@@ -26,11 +26,11 @@ public class MetricsDao {
         this.dslContext = dslContext;
     }
 
-    public List<VolunteerExecutionsCountInfo> successfulVolunteerExecutionsCountInfo(LocalDate from, LocalDate to) {
+    public List<VolunteerExecutionsCountInfo> successfulVolunteerExecutionsCountInfo(LocalDateTime from, LocalDateTime to) {
         return volunteerExecutionsCountInfoMeetingCondition(isExecutionSuccessful().and(isExecutedWithin(from, to)));
     }
 
-    public List<VolunteerExecutionsCountInfo> failingVolunteerExecutionsCountInfo(LocalDate from, LocalDate to) {
+    public List<VolunteerExecutionsCountInfo> failingVolunteerExecutionsCountInfo(LocalDateTime from, LocalDateTime to) {
         return volunteerExecutionsCountInfoMeetingCondition(isExecutionFailing().and(isExecutedWithin(from, to)));
     }
 
@@ -52,8 +52,8 @@ public class MetricsDao {
         return Tables.EXECUTIONS.STATUS.in(Arrays.asList(ABORTED.toString(), TIMEOUT.toString(), FAILED.toString()));
     }
 
-    private Condition isExecutedWithin(LocalDate from, LocalDate to) {
-        return Tables.EXECUTIONS.COMPLETION_TIME.between(startOfDayInMilliseconds(from), endOfDayInMilliseconds(to));
+    private Condition isExecutedWithin(LocalDateTime from, LocalDateTime to) {
+        return Tables.EXECUTIONS.COMPLETION_TIME.between(localDateTimeInMilliseconds(from), localDateTimeInMilliseconds(to));
     }
 
 }

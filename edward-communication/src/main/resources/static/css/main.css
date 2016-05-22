@@ -5,10 +5,13 @@
     text-transform: capitalize;
     letter-spacing: 0.05em;
 }
-.snapshot-button {
+.float-right {
     float: right;
+}
+.button {
     display: block;
-    margin: auto;
+    margin: 3px;
+    width: 150px;
     border: 1px solid black;
     padding: 8px 20px;
     font-size: 10px;
@@ -19,9 +22,10 @@
     text-decoration: none;
     color: black;
 }
-.snapshot-button:hover {
+.button:hover {
     color: white;
     background-color: black;
+    cursor: pointer;
 }
 .chart-container {
     margin-top: 15px;
@@ -40,4 +44,12 @@
     font-family: Helvetica, serif;
     text-align: center;
     font-weight: 300;
+}
+.date-range-picker-container {
+    display: inline-flex;
+    width: 100%;
+}
+.date-picker-container {
+    position: relative;
+    margin: 3px;
 }
