@@ -583,7 +583,7 @@ var DateTimeRangePicker = React.createClass({
     getInitialState: function() {
         return {
             startDate: moment().tz('Europe/Warsaw').subtract(7, 'days').format(DATE_FORMAT),
-            endDate  : moment().tz('Europe/Warsaw').format(DATE_FORMAT)
+            endDate  : moment().tz('Europe/Warsaw').add(1, 'days').startOf('day').format(DATE_FORMAT)
         };
     },
     onStartDateChanged: function(date) {
@@ -707,8 +707,8 @@ var VolunteerExecutionsChartContainer = React.createClass({
         }).then(r => r.json());
     },
     componentDidMount: function () {
-        var startDate = moment().subtract(7, 'days');
-        var endDate = moment();
+        var startDate = moment().tz('Europe/Warsaw').subtract(7, 'days');
+        var endDate = moment().tz('Europe/Warsaw').add(1, 'days').startOf('day');
 
         this.fetchAndUpdateState(startDate, endDate);
     },
