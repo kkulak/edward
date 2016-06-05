@@ -640,7 +640,7 @@ var ActiveVolunteersChartContainer = React.createClass({
         this.setState({data: this.state.data.concat([entry])});
     },
     fetchVolunteersAndUpdateState: function () {
-        fetch('http://localhost:8080/api/internal/volunteerCount/', {
+        fetch('http://46.101.253.243:8080/api/internal/volunteerCount/', {
             headers: {
                 "Authorization": "Basic " + btoa("admin:admin")
             }
@@ -698,7 +698,7 @@ var VolunteerExecutionsChartContainer = React.createClass({
         });
     },
     fetchData: function (startDate, endDate) {
-        var endpoint = 'http://localhost:8080/api/internal/metrics/volunteer-executions/';
+        var endpoint = 'http://46.101.253.243:8080/api/internal/metrics/volunteer-executions/';
         var params = 'type=' + this.props.type + '&from=' + startDate + '&to=' + endDate;
         return fetch(endpoint + '?' + params, {
             headers: {

@@ -1,4 +1,4 @@
-var HOST = "//localhost:8080";
+var HOST = "//46.101.253.243:8080";
 var BASE_API_URL = HOST + "/api/internal";
 
 var USER = "admin";
